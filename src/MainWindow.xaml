@@ -1,0 +1,269 @@
+<Window x:Class="PortPatrol.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PortPatrol" Icon="Assets/portpatrol.ico" Width="1560" Height="900" MinWidth="1150" MinHeight="650"
+        Background="{StaticResource Bg}" FontFamily="Segoe UI" WindowStartupLocation="CenterScreen">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- Header -->
+    <Border Grid.Row="0" BorderBrush="{StaticResource Orange}" BorderThickness="0,0,0,2">
+      <Border.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+          <GradientStop Color="#2B2D31" Offset="0"/><GradientStop Color="#16171A" Offset="1"/>
+        </LinearGradientBrush>
+      </Border.Background>
+      <DockPanel Margin="16,8">
+        <Button x:Name="BtnAbout" DockPanel.Dock="Right" Style="{StaticResource Ghost}" Content="?" FontWeight="Bold" Width="34" Padding="0,6" Margin="12,0,0,0" ToolTip="About PortPatrol" Click="BtnAbout_Click"/>
+        <Button x:Name="BtnLogoff" DockPanel.Dock="Right" Style="{StaticResource Ghost}" Content="Log off" Margin="8,0,0,0" ToolTip="Disconnect from Central and return to the login screen" Click="BtnLogoff_Click" Visibility="Collapsed"/>
+        <Button x:Name="BtnSettings" DockPanel.Dock="Right" Style="{StaticResource Ghost}" Content="Connection" Margin="12,0,0,0" ToolTip="Change gateway or credentials (stays connected until you click Connect)" Click="BtnSettings_Click" Visibility="Collapsed"/>
+        <TextBlock x:Name="TxtConn" DockPanel.Dock="Right" Foreground="#B8BCC2" VerticalAlignment="Center" FontSize="12"/>
+        <StackPanel Orientation="Horizontal">
+          <Image Source="Assets/icon.png" Width="40" Height="40" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock FontSize="21" FontWeight="Bold"><Run Text="Port" Foreground="White"/><Run Text="Patrol" Foreground="{StaticResource Orange}"/></TextBlock>
+            <TextBlock Text="Switch port management for Aruba new Central" Foreground="#9AA0A8" FontSize="11" Margin="1,-2,0,0"/>
+          </StackPanel>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Content -->
+    <Grid Grid.Row="1">
+      <!-- Connection settings -->
+      <Border x:Name="SettingsView" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+              CornerRadius="4" Width="520" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="28">
+        <StackPanel>
+          <TextBlock Text="Connect to Aruba new Central" FontSize="20" FontWeight="SemiBold"/>
+          <TextBlock Text="Enter the API gateway of your Central cluster and the API client credentials." Foreground="{StaticResource Muted}" Margin="0,4,0,8" TextWrapping="Wrap"/>
+          <TextBlock Text="Central API gateway (location)" Style="{StaticResource Caption}"/>
+          <ComboBox x:Name="CmbBase" IsEditable="True" TextSearch.TextPath="Url" MaxDropDownHeight="320" ToolTip="Pick a cluster, or type your own https URL">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="{Binding Url}" Width="330"/>
+                  <TextBlock Text="{Binding Region}" Foreground="{StaticResource Muted}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Text="Pick your cluster from the list, or type the full https URL if it is not listed (HPE Aruba Networking developer hub, 'Finding your base URL')." Foreground="{StaticResource Muted}" FontSize="10.5" TextWrapping="Wrap" Margin="0,3,0,0"/>
+          <TextBlock Text="Client ID" Style="{StaticResource Caption}"/>
+          <TextBox x:Name="TxtClientId"/>
+          <TextBlock Text="Client secret" Style="{StaticResource Caption}"/>
+          <PasswordBox x:Name="PwdSecret"/>
+          <CheckBox x:Name="ChkRemember" Margin="0,14,0,0" Content="Remember on this PC (encrypted with Windows DPAPI, this Windows user only)"/>
+          <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+            <Button x:Name="BtnConnect" Style="{StaticResource Primary}" Content="Connect and continue" Click="BtnConnect_Click"/>
+            <Button x:Name="BtnForget" Content="Forget saved credentials" Click="BtnForget_Click"/>
+          </StackPanel>
+          <TextBlock x:Name="TxtConnectMsg" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="{StaticResource Muted}"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Main: switches | ports | settings -->
+      <Grid x:Name="MainView" Margin="10" Visibility="Collapsed">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="270" MinWidth="200"/>
+          <ColumnDefinition Width="6"/>
+          <ColumnDefinition Width="*" MinWidth="420"/>
+          <ColumnDefinition Width="6"/>
+          <ColumnDefinition Width="400" MinWidth="330"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left: switches -->
+        <Border Grid.Column="0" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4">
+          <DockPanel Margin="10">
+            <TextBlock DockPanel.Dock="Top" Text="SWITCHES" FontWeight="SemiBold" Foreground="{StaticResource OrangeDark}" FontSize="12"/>
+            <TextBox DockPanel.Dock="Top" x:Name="TxtSwFilter" Margin="0,6,0,8" TextChanged="TxtSwFilter_TextChanged"/>
+            <ListBox x:Name="LstSwitches" BorderThickness="0" SelectionChanged="LstSwitches_SelectionChanged">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="2,3">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Sub}" FontSize="10.5" Foreground="{StaticResource Muted}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+        <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="Transparent"/>
+
+        <!-- Middle: ports -->
+        <Border Grid.Column="2" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4">
+          <DockPanel Margin="10">
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+              <Button x:Name="BtnRefresh" DockPanel.Dock="Right" Margin="8,0,0,0" Height="28" VerticalAlignment="Top" Padding="14,0" Content="Refresh" Click="BtnRefresh_Click" IsEnabled="False"/>
+              <ComboBox x:Name="CmbFunction" DockPanel.Dock="Right" Width="130" Height="28" VerticalAlignment="Top" Margin="8,0,0,0" ToolTip="Device function used for writes to this switch" SelectionChanged="CmbFunction_SelectionChanged" IsEnabled="False"/>
+              <ComboBox x:Name="CmbPortFilter" DockPanel.Dock="Right" Width="150" Height="28" VerticalAlignment="Top" SelectedIndex="0" SelectionChanged="CmbPortFilter_SelectionChanged">
+                <ComboBoxItem Content="All ports"/>
+                <ComboBoxItem Content="Admin down"/>
+                <ComboBoxItem Content="VLAN 666"/>
+                <ComboBoxItem Content="Not hardened"/>
+                <ComboBoxItem Content="Hardened"/>
+                <ComboBoxItem Content="Link up (in use)"/>
+                <ComboBoxItem Content="Link down"/>
+              </ComboBox>
+              <StackPanel>
+                <TextBlock x:Name="TxtSwTitle" Text="Select a switch" FontSize="16" FontWeight="SemiBold"/>
+                <TextBlock x:Name="TxtSwInfo" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+              </StackPanel>
+            </DockPanel>
+            <Border DockPanel.Dock="Top" Background="#FFF4E5" BorderBrush="#FFD9A8" BorderThickness="1" CornerRadius="3" Padding="10,6" Margin="0,0,0,8">
+              <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Clear selection" Click="BtnSelNone_Click" Padding="10,3" Margin="6,0,0,0"/>
+                <Button DockPanel.Dock="Right" Content="Select all shown" Click="BtnSelAll_Click" Padding="10,3" Margin="6,0,0,0"/>
+                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="11.5" Foreground="#5A3A00"
+                           Text="Click a port to see and edit its settings. Hold Ctrl and click to add ports, or Shift and click to select a range, to change several ports at once."/>
+              </DockPanel>
+            </Border>
+            <DataGrid x:Name="GrdPorts" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" SelectionUnit="FullRow"
+                      HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#ECEEF0" BorderThickness="0"
+                      Background="White" RowBackground="White" AlternatingRowBackground="#FAFAFB" CanUserAddRows="False"
+                      RowDetailsVisibilityMode="Collapsed" SelectionChanged="GrdPorts_SelectionChanged" EnableRowVirtualization="True">
+              <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                  <Setter Property="DetailsVisibility" Value="Collapsed"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Expanded}" Value="True"><Setter Property="DetailsVisibility" Value="Visible"/></DataTrigger>
+                    <DataTrigger Binding="{Binding AdminDown}" Value="True"><Setter Property="Foreground" Value="#8A8F96"/></DataTrigger>
+                    <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="#FFE3C2"/><Setter Property="Foreground" Value="#111"/></Trigger>
+                  </Style.Triggers>
+                </Style>
+              </DataGrid.RowStyle>
+              <DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                  <Border Background="#F6F7F8" BorderBrush="{StaticResource Orange}" BorderThickness="3,0,0,0" Padding="12,8" Margin="8,0,0,6">
+                    <TextBlock Text="{Binding DetailJson}" FontFamily="Consolas" FontSize="11.5"/>
+                  </Border>
+                </DataTemplate>
+              </DataGrid.RowDetailsTemplate>
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Port" Binding="{Binding Name}" Width="70"/>
+                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" MinWidth="80"/>
+                <DataGridTextColumn Header="Admin" Binding="{Binding AdminText}" Width="55"/>
+                <DataGridTemplateColumn Header="Link" Width="62" SortMemberPath="LinkText">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding LinkText}" VerticalAlignment="Center" Margin="4,0">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#8A8F96"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding LinkUp}" Value="True"><Setter Property="Foreground" Value="#2E7D32"/><Setter Property="FontWeight" Value="SemiBold"/></DataTrigger></Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Mode" Binding="{Binding ModeText}" Width="72"/>
+                <DataGridTextColumn Header="VLAN" Binding="{Binding VlanText}" Width="80"/>
+                <DataGridTextColumn Header="BPDU" Binding="{Binding BpduText}" Width="45"/>
+                <DataGridTextColumn Header="Root" Binding="{Binding RootText}" Width="45"/>
+                <DataGridTextColumn Header="Edge" Binding="{Binding EdgeText}" Width="45"/>
+                <DataGridTextColumn Header="Loop" Binding="{Binding LoopText}" Width="85"/>
+                <DataGridTextColumn Header="PoE" Binding="{Binding PoeText}" Width="40"/>
+                <DataGridTextColumn Header="Connected to" Binding="{Binding NeighbourText}" Width="170"/>
+              </DataGrid.Columns>
+            </DataGrid>
+          </DockPanel>
+        </Border>
+        <GridSplitter Grid.Column="3" HorizontalAlignment="Stretch" Background="Transparent"/>
+
+        <!-- Right: settings to change -->
+        <Border Grid.Column="4" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4">
+          <Grid Margin="12">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0">
+              <TextBlock Text="SETTINGS TO CHANGE" FontWeight="SemiBold" Foreground="{StaticResource OrangeDark}" FontSize="12"/>
+              <TextBlock x:Name="TxtSel" Text="No ports selected" Margin="0,4,0,0" FontSize="14" FontWeight="SemiBold"/>
+              <TextBlock x:Name="TxtSelHint" Text="Click a port to see its settings. Ctrl+click adds ports, Shift+click selects a range." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
+            </StackPanel>
+            <Grid Grid.Row="1" Margin="0,6,0,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+              <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,6,0">
+                <TextBlock Text="Admin state" Style="{StaticResource Caption}"/>
+                <ComboBox x:Name="CmbAdmin" SelectedIndex="0" SelectionChanged="SpecChanged"><ComboBoxItem Content="(no change)"/><ComboBoxItem Content="Up"/><ComboBoxItem Content="Down"/></ComboBox>
+              </StackPanel>
+              <StackPanel Grid.Row="0" Grid.Column="1" Margin="6,0,0,0">
+                <TextBlock Text="Access VLAN (ACCESS ports)" Style="{StaticResource Caption}"/>
+                <ComboBox x:Name="TxtVlan" IsEditable="True" SelectionChanged="SpecChanged" TextBoxBase.TextChanged="SpecChanged"/>
+              </StackPanel>
+              <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,6,0">
+                <TextBlock Text="BPDU guard" Style="{StaticResource Caption}"/>
+                <ComboBox x:Name="CmbBpdu" SelectedIndex="0" SelectionChanged="SpecChanged"><ComboBoxItem Content="(no change)"/><ComboBoxItem Content="On"/><ComboBoxItem Content="Off"/></ComboBox>
+              </StackPanel>
+              <StackPanel Grid.Row="1" Grid.Column="1" Margin="6,0,0,0">
+                <TextBlock Text="Root guard" Style="{StaticResource Caption}"/>
+                <ComboBox x:Name="CmbRoot" SelectedIndex="0" SelectionChanged="SpecChanged"><ComboBoxItem Content="(no change)"/><ComboBoxItem Content="On"/><ComboBoxItem Content="Off"/></ComboBox>
+              </StackPanel>
+              <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,6,0">
+                <TextBlock Text="Admin edge port" Style="{StaticResource Caption}"/>
+                <ComboBox x:Name="CmbEdge" SelectedIndex="0" SelectionChanged="SpecChanged"><ComboBoxItem Content="(no change)"/><ComboBoxItem Content="On"/><ComboBoxItem Content="Off"/></ComboBox>
+              </StackPanel>
+              <StackPanel Grid.Row="2" Grid.Column="1" Margin="6,0,0,0">
+                <TextBlock Text="Loop protect (TX_DISABLE)" Style="{StaticResource Caption}"/>
+                <ComboBox x:Name="CmbLoop" SelectedIndex="0" SelectionChanged="SpecChanged"><ComboBoxItem Content="(no change)"/><ComboBoxItem Content="On"/><ComboBoxItem Content="Off"/></ComboBox>
+              </StackPanel>
+              <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,6,0">
+                <TextBlock Text="PoE" Style="{StaticResource Caption}"/>
+                <ComboBox x:Name="CmbPoe" SelectedIndex="0" SelectionChanged="SpecChanged"><ComboBoxItem Content="(no change)"/><ComboBoxItem Content="On"/><ComboBoxItem Content="Off"/></ComboBox>
+              </StackPanel>
+              <StackPanel Grid.Row="3" Grid.Column="1" Margin="6,0,0,0">
+                <TextBlock Text="Description (max 64)" Style="{StaticResource Caption}"/>
+                <TextBox x:Name="TxtDesc" MaxLength="64" TextChanged="SpecChanged"/>
+                <CheckBox x:Name="ChkClearDesc" Margin="0,4,0,0" Content="Clear description" Checked="ChkClearDesc_Changed" Unchecked="ChkClearDesc_Changed"/>
+              </StackPanel>
+            </Grid>
+            <StackPanel Grid.Row="2">
+              <TextBlock Text="LAG membership" Style="{StaticResource Caption}" Margin="0,12,0,3"/>
+              <ComboBox x:Name="CmbLag" SelectionChanged="CmbLag_Changed" DisplayMemberPath="Text" IsEnabled="False"/>
+              <Grid x:Name="PnlNewLag" Visibility="Collapsed" Margin="0,6,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="New LAG number" Style="{StaticResource Caption}" Margin="0,0,0,3"/><TextBox x:Name="TxtLagNew" TextChanged="SpecChanged"/></StackPanel>
+                <StackPanel Grid.Column="1"><TextBlock Text="Description (optional)" Style="{StaticResource Caption}" Margin="0,0,0,3"/><TextBox x:Name="TxtLagDesc" TextChanged="SpecChanged"/></StackPanel>
+              </Grid>
+              <TextBlock Text="LAG changes need 'Allow trunk and uplink ports' and can interrupt links." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+              <CheckBox x:Name="ChkAllowTrunk" Margin="0,12,0,0" Content="Allow trunk and uplink ports" Checked="SpecChanged" Unchecked="SpecChanged"/>
+              <TextBlock Text="PoE is only changed when you set it above." Foreground="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0"/>
+              <WrapPanel Margin="0,12,0,0">
+                <Button x:Name="BtnPreset" Content="Preset: endpoint hardening (VLAN 666)" Click="BtnPreset_Click" Margin="0,0,8,6"/>
+                <Button x:Name="BtnClear" Content="Clear fields" Click="BtnClear_Click" Margin="0,0,0,6"/>
+              </WrapPanel>
+              <WrapPanel Margin="0,4,0,0">
+                <Button x:Name="BtnDry" Style="{StaticResource Primary}" Content="Dry run" Click="BtnDry_Click" IsEnabled="False" Margin="0,0,8,6"/>
+                <Button x:Name="BtnApply" Style="{StaticResource Primary}" Background="#2E7D32" Content="Apply" Click="BtnApply_Click" IsEnabled="False" Margin="0,0,8,6"/>
+                <Button x:Name="BtnRollback" Content="Rollback..." Click="BtnRollback_Click" IsEnabled="False" Margin="0,0,8,6"/>
+                <Button x:Name="BtnStop" Content="Stop" Click="BtnStop_Click" Visibility="Collapsed" Margin="0,0,8,6"/>
+                <Button x:Name="BtnRuns" Content="Open runs folder" Click="BtnRuns_Click" Margin="0,0,0,6"/>
+              </WrapPanel>
+              <TextBlock x:Name="TxtHint" Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Text="Apply unlocks after a dry run of exactly this selection and these settings." Margin="0,2,0,6"/>
+              <TextBlock Text="LOG" FontWeight="SemiBold" Foreground="{StaticResource OrangeDark}" FontSize="12" Margin="0,6,0,4"/>
+            </StackPanel>
+            <TextBox Grid.Row="3" x:Name="TxtLog" IsReadOnly="True" FontFamily="Consolas" FontSize="11.5" Background="#16181B" Foreground="#E7E9EC"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" Padding="8"/>
+          </Grid>
+        </Border>
+      </Grid>
+    </Grid>
+
+    <!-- Footer -->
+    <Border Grid.Row="2" Background="{StaticResource Dark}">
+      <DockPanel Margin="18,6">
+        <TextBlock DockPanel.Dock="Right" Text="Created by Imagination" Foreground="{StaticResource Orange}" FontSize="12" FontWeight="SemiBold"/>
+        <TextBlock x:Name="TxtStatus" Foreground="#B8BCC2" FontSize="12" Text="Not connected"/>
+      </DockPanel>
+    </Border>
+  </Grid>
+</Window>

@@ -1,0 +1,8 @@
+bin/
+bin_selfcontained/
+obj/
+.vs/
+*.user
+*.jsonl
+settings.json
+functions.json
