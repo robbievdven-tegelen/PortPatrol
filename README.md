@@ -19,6 +19,13 @@ MIT, see `LICENSE`.
 - An Aruba New Central API client with permission to read monitoring data and write the network configuration. Classic Aruba Central is not supported.
 - The base URL of your Central cluster (see "Finding your base URL" on the HPE Aruba Networking developer hub).
 
+## Windows security warnings
+PortPatrol is not code signed yet. Windows can therefore treat `PortPatrol.exe` as an unknown program:
+- SmartScreen can show "Windows protected your PC". Choose "More info" and then "Run anyway".
+- Microsoft Defender attack surface reduction (ASR) can block it when the rule "Block executable files from running unless they meet a prevalence, age, or trusted list criterion" is enabled. On managed devices only your administrator can allow it, for example with a per rule exclusion for the folder that contains the exe in Intune or Group Policy.
+
+Check the SHA256 of the file against `SHA256SUMS.txt` published with the release before you start it. You can also build it yourself, see "Build".
+
 ## Build
 Install the .NET 8 SDK and run `build.cmd`, or `dotnet publish src -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true`.
 
