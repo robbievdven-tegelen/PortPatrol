@@ -1,0 +1,63 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish (framework dependent, single file)
+        run: dotnet publish src/PortPatrol.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o out/framework
+
+      - name: Publish (self contained, single file)
+        run: dotnet publish src/PortPatrol.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o out/selfcontained
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem out -Recurse -Filter PortPatrol.exe | ForEach-Object {
+            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+            "$h  $($_.Directory.Name)/PortPatrol.exe" | Out-File out/SHA256SUMS.txt -Append -Encoding ascii
+          }
+          Get-Content out/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PortPatrol-unsigned
+          path: |
+            out/framework/PortPatrol.exe
+            out/selfcontained/PortPatrol.exe
+            out/SHA256SUMS.txt
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: PortPatrol-unsigned
+          path: dist
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mv dist/framework/PortPatrol.exe dist/PortPatrol.exe
+          mv dist/selfcontained/PortPatrol.exe dist/PortPatrol-selfcontained.exe
+          gh release create "${{ github.ref_name }}" dist/PortPatrol.exe dist/PortPatrol-selfcontained.exe dist/SHA256SUMS.txt \
+            --repo "${{ github.repository }}" --draft --title "${{ github.ref_name }}" --notes "Unsigned build. Verify the SHA256 in SHA256SUMS.txt."
