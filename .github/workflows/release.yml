@@ -80,5 +80,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" dist/PortPatrol.exe dist/PortPatrol-selfcontained.exe dist/SHA256SUMS.txt \
-            --repo "${{ github.repository }}" --draft --title "${{ github.ref_name }}" --notes "Verify the SHA256 in SHA256SUMS.txt."
+          files="dist/PortPatrol.exe dist/PortPatrol-selfcontained.exe dist/SHA256SUMS.txt"
+          if gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "${{ github.ref_name }}" $files --clobber --repo "${{ github.repository }}"
+          else
+            gh release create "${{ github.ref_name }}" $files \
+              --repo "${{ github.repository }}" --draft --title "${{ github.ref_name }}" --notes "Verify the SHA256 in SHA256SUMS.txt."
+          fi
