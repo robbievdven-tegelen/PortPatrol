@@ -179,17 +179,18 @@
         <Border Grid.Column="4" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4">
           <Grid Margin="12">
             <Grid.RowDefinitions>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
               <RowDefinition Height="*"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="200"/>
             </Grid.RowDefinitions>
-            <StackPanel Grid.Row="0">
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Margin="0,0,0,4">
+            <StackPanel Margin="0,0,6,0">
+            <StackPanel>
               <TextBlock Text="SETTINGS TO CHANGE" FontWeight="SemiBold" Foreground="{StaticResource OrangeDark}" FontSize="12"/>
               <TextBlock x:Name="TxtSel" Text="No ports selected" Margin="0,4,0,0" FontSize="14" FontWeight="SemiBold"/>
               <TextBlock x:Name="TxtSelHint" Text="Click a port to see its settings. Ctrl+click adds ports, Shift+click selects a range." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
             </StackPanel>
-            <Grid Grid.Row="1" Margin="0,6,0,0">
+            <Grid Margin="0,6,0,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
               <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
               <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,6,0">
@@ -226,7 +227,7 @@
                 <CheckBox x:Name="ChkClearDesc" Margin="0,4,0,0" Content="Clear description" Checked="ChkClearDesc_Changed" Unchecked="ChkClearDesc_Changed"/>
               </StackPanel>
             </Grid>
-            <StackPanel Grid.Row="2">
+            <StackPanel>
               <TextBlock Text="LAG membership" Style="{StaticResource Caption}" Margin="0,12,0,3"/>
               <ComboBox x:Name="CmbLag" SelectionChanged="CmbLag_Changed" DisplayMemberPath="Text" IsEnabled="False"/>
               <Grid x:Name="PnlNewLag" Visibility="Collapsed" Margin="0,6,0,0">
@@ -265,9 +266,11 @@
                 <Button x:Name="BtnRuns" Content="Open runs folder" Click="BtnRuns_Click" Margin="0,0,0,6"/>
               </WrapPanel>
               <TextBlock x:Name="TxtHint" Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Text="Apply unlocks after a dry run of exactly this selection and these settings." Margin="0,2,0,6"/>
-              <TextBlock Text="LOG" FontWeight="SemiBold" Foreground="{StaticResource OrangeDark}" FontSize="12" Margin="0,6,0,4"/>
             </StackPanel>
-            <TextBox Grid.Row="3" x:Name="TxtLog" IsReadOnly="True" FontFamily="Consolas" FontSize="11.5" Background="#16181B" Foreground="#E7E9EC"
+            </StackPanel>
+            </ScrollViewer>
+            <TextBlock Grid.Row="1" Text="LOG" FontWeight="SemiBold" Foreground="{StaticResource OrangeDark}" FontSize="12" Margin="0,6,0,4"/>
+            <TextBox Grid.Row="2" x:Name="TxtLog" IsReadOnly="True" FontFamily="Consolas" FontSize="11.5" Background="#16181B" Foreground="#E7E9EC"
                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" Padding="8"/>
           </Grid>
         </Border>
