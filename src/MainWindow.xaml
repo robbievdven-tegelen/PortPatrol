@@ -234,6 +234,12 @@
                 <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="New LAG number" Style="{StaticResource Caption}" Margin="0,0,0,3"/><TextBox x:Name="TxtLagNew" TextChanged="SpecChanged"/></StackPanel>
                 <StackPanel Grid.Column="1"><TextBlock Text="Description (optional)" Style="{StaticResource Caption}" Margin="0,0,0,3"/><TextBox x:Name="TxtLagDesc" TextChanged="SpecChanged"/></StackPanel>
               </Grid>
+              <CheckBox x:Name="ChkMakeTrunk" Margin="0,12,0,0" Content="Make trunk (needs 'Allow trunk and uplink ports')" Checked="ChkMakeTrunk_Changed" Unchecked="ChkMakeTrunk_Changed"/>
+              <Grid x:Name="PnlTrunk" Visibility="Collapsed" Margin="0,6,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Native VLAN" Style="{StaticResource Caption}" Margin="0,0,0,3"/><TextBox x:Name="TxtTrunkNative" TextChanged="SpecChanged"/></StackPanel>
+                <StackPanel Grid.Column="1"><TextBlock Text="Allowed VLANs (e.g. 10,20,30-40)" Style="{StaticResource Caption}" Margin="0,0,0,3"/><TextBox x:Name="TxtTrunkVlans" TextChanged="SpecChanged"/></StackPanel>
+              </Grid>
               <TextBlock Text="LAG changes need 'Allow trunk and uplink ports' and can interrupt links." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
               <CheckBox x:Name="ChkAllowTrunk" Margin="0,12,0,0" Content="Allow trunk and uplink ports" Checked="SpecChanged" Unchecked="SpecChanged"/>
               <TextBlock Text="PoE is only changed when you set it above." Foreground="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0"/>

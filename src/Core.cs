@@ -105,9 +105,29 @@ public sealed class ChangeSpec
     /// <summary>New port description (1 to 64 characters). Null = leave as is.</summary>
     public string? Description { get; set; }
     public bool ClearDescription { get; set; }
+    /// <summary>Make the port a TRUNK with this native VLAN and these allowed VLANs (numbers and ranges such as "10-20").</summary>
+    public bool MakeTrunk { get; set; }
+    public int? TrunkNative { get; set; }
+    public List<string> TrunkVlans { get; set; } = new();
 
-    public bool IsEmpty => LagMode == LagMode.NoChange && Description == null && !ClearDescription && Poe == null && Enable == null && AccessVlan == null && BpduGuard == null && RootGuard == null && AdminEdge == null && LoopProtect == null;
-    public string Key => $"{LagMode}|{LagId}|{LagDescription}|{Description}|{ClearDescription}|{Poe}|{Enable}|{AccessVlan}|{BpduGuard}|{RootGuard}|{AdminEdge}|{LoopProtect}";
+    /// <summary>Expands "10", "20-22" into a set of VLAN ids. Returns null when an entry is invalid.</summary>
+    public static HashSet<int>? ExpandVlans(IEnumerable<string> items)
+    {
+        var set = new HashSet<int>();
+        foreach (var raw in items)
+        {
+            var t = raw.Trim();
+            var m = Regex.Match(t, @"^(\d{1,4})(?:-(\d{1,4}))?$");
+            if (!m.Success) return null;
+            int lo = int.Parse(m.Groups[1].Value), hi = m.Groups[2].Success ? int.Parse(m.Groups[2].Value) : lo;
+            if (lo < 1 || hi > 4094 || lo > hi) return null;
+            for (int i = lo; i <= hi; i++) set.Add(i);
+        }
+        return set;
+    }
+
+    public bool IsEmpty => !MakeTrunk && LagMode == LagMode.NoChange && Description == null && !ClearDescription && Poe == null && Enable == null && AccessVlan == null && BpduGuard == null && RootGuard == null && AdminEdge == null && LoopProtect == null;
+    public string Key => $"{MakeTrunk}|{TrunkNative}|{string.Join(",", TrunkVlans)}|{LagMode}|{LagId}|{LagDescription}|{Description}|{ClearDescription}|{Poe}|{Enable}|{AccessVlan}|{BpduGuard}|{RootGuard}|{AdminEdge}|{LoopProtect}";
 
     static readonly Regex UplinkWords = new(@"\b(UL|uplink|LAG|backbone)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -159,6 +179,36 @@ public sealed class ChangeSpec
         {
             other["enable"] = e;
             otherChanges.Add($"admin {(b.Enable ? "up" : "down")} -> {(e ? "up" : "down")}");
+        }
+        if (MakeTrunk)
+        {
+            if (AccessVlan != null || LagMode != LagMode.NoChange) { p.Skip = "make trunk cannot be combined with an access VLAN or a LAG change"; return p; }
+            if (!allowTrunkAndUplink) { p.Skip = "make trunk (guard: tick 'Allow trunk and uplink ports' to override)"; return p; }
+            if (lagMember) { p.Skip = "LAG member, remove it from the LAG first"; return p; }
+            if (TrunkNative is not int nat || nat < 1 || nat > 4094 || TrunkVlans.Count == 0 || ExpandVlans(TrunkVlans) == null) { p.Skip = "trunk needs a native VLAN and a valid allowed VLAN list"; return p; }
+            if (BpduGuard == true || RootGuard == true || AdminEdge == true || LoopProtect == true) { p.Skip = "BPDU guard, root guard, admin edge and loop protect are switched off on a trunk, do not set them to On"; return p; }
+            var want = ExpandVlans(TrunkVlans)!;
+            bool same = false;
+            if (trunk && b.Switchport != null && JsonNode.Parse(b.Switchport) is JsonObject cur)
+            {
+                var have = cur["trunk-vlan-ranges"] is JsonArray ja ? ExpandVlans(ja.Select(x => J.Str(x) ?? "")) : null;
+                same = J.Int(cur["native-vlan"]) == nat && !J.Bool(cur["trunk-vlan-all"]) && have != null && have.SetEquals(want);
+            }
+            if (!same)
+            {
+                var sp = new JsonObject { ["interface-mode"] = "TRUNK", ["native-vlan"] = nat, ["tag"] = false, ["trunk-vlan-all"] = false };
+                var arr = new JsonArray(); foreach (var x in TrunkVlans) arr.Add(x.Trim());
+                sp["trunk-vlan-ranges"] = arr;
+                other["switchport"] = sp;
+                otherChanges.Add($"mode {b.Mode ?? "?"} -> TRUNK, native VLAN {nat}, allowed {string.Join(",", TrunkVlans.Select(x => x.Trim()))}");
+            }
+            // end-device protections do not belong on a trunk
+            var tstp = new JsonObject();
+            if (b.BpduGuard) { tstp["bpdu-guard"] = false; otherChanges.Add("BPDU guard on -> off (trunk)"); }
+            if (b.RootGuard) { tstp["root-guard"] = false; otherChanges.Add("root guard on -> off (trunk)"); }
+            if (b.AdminEdge) { tstp["admin-edge-port"] = false; otherChanges.Add("admin edge on -> off (trunk)"); }
+            if (tstp.Count > 0) other["stp"] = tstp;
+            if (b.LoopProtect) { other["loop-protect"] = new JsonObject { ["enable"] = false }; otherChanges.Add("loop protect on -> off (trunk)"); }
         }
         if (AccessVlan is int v)
         {
@@ -265,6 +315,18 @@ public sealed class ChangeSpec
         if (Poe is bool pe && a.Poe != pe) bad.Add("PoE");
         if (ClearDescription && a.Desc != null) bad.Add($"description is still \"{a.Desc}\"");
         else if (!ClearDescription && Description != null && (a.Desc ?? "") != Description) bad.Add($"description is \"{a.Desc ?? ""}\"");
+        if (MakeTrunk)
+        {
+            if (!string.Equals(a.Mode, "TRUNK", StringComparison.OrdinalIgnoreCase)) bad.Add($"mode is {a.Mode ?? "none"}");
+            else if (a.Switchport != null && JsonNode.Parse(a.Switchport) is JsonObject cur)
+            {
+                if (J.Int(cur["native-vlan"]) != TrunkNative) bad.Add($"native VLAN is {J.Int(cur["native-vlan"])}");
+                var have = cur["trunk-vlan-ranges"] is JsonArray ja ? ExpandVlans(ja.Select(x => J.Str(x) ?? "")) : null;
+                var want = ExpandVlans(TrunkVlans);
+                if (J.Bool(cur["trunk-vlan-all"]) || have == null || want == null || !have.SetEquals(want)) bad.Add("allowed VLANs differ");
+            }
+            if (a.BpduGuard || a.RootGuard || a.AdminEdge || a.LoopProtect) bad.Add("end-device protections still on");
+        }
         if (AccessVlan is int v && a.AccessVlan != v) bad.Add($"access VLAN is {a.AccessVlan}");
         if (AccessVlan is int v2 && !string.Equals(a.Mode, "ACCESS", StringComparison.OrdinalIgnoreCase)) bad.Add($"mode is {a.Mode ?? "none"}");
         if (BpduGuard is bool b1 && a.BpduGuard != b1) bad.Add("BPDU guard");

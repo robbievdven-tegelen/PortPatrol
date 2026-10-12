@@ -408,6 +408,13 @@ public partial class MainWindow : Window
                 s.LagDescription = TxtLagDesc.Text.Trim();
             }
         }
+        if (ChkMakeTrunk.IsChecked == true)
+        {
+            if (!int.TryParse(TxtTrunkNative.Text.Trim(), out var nat) || nat < 1 || nat > 4094) { err = "Native VLAN must be a number between 1 and 4094."; return null; }
+            var list = TxtTrunkVlans.Text.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+            if (list.Count == 0 || ChangeSpec.ExpandVlans(list) == null) { err = "Allowed VLANs: numbers 1 to 4094 or ranges like 30-40, separated by commas."; return null; }
+            s.MakeTrunk = true; s.TrunkNative = nat; s.TrunkVlans = list;
+        }
         var t = TxtVlan.Text.Trim();
         var vm = System.Text.RegularExpressions.Regex.Match(t, @"^\d+");
         if (t.Length > 0)
@@ -421,6 +428,16 @@ public partial class MainWindow : Window
         else if (!string.IsNullOrEmpty(_descPrefill)) s.ClearDescription = true;   // the field was filled from the port and has been emptied: clear it
         if (s.IsEmpty) { err = "No settings chosen."; return null; }
         return s;
+    }
+
+    void ChkMakeTrunk_Changed(object sender, RoutedEventArgs e)
+    {
+        bool on = ChkMakeTrunk.IsChecked == true;
+        PnlTrunk.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (on) { TxtVlan.Text = ""; }
+        TxtVlan.IsEnabled = !on;
+        TxtVlan.ToolTip = on ? "Not used when making a trunk." : null;
+        SpecChanged(sender, e);
     }
 
     void ChkClearDesc_Changed(object sender, RoutedEventArgs e)
@@ -467,7 +484,7 @@ public partial class MainWindow : Window
     {
         _descPrefill = null;
         TxtDesc.Text = ""; ChkClearDesc.IsChecked = false;
-        CmbAdmin.SelectedIndex = 0; TxtVlan.Text = ""; CmbBpdu.SelectedIndex = 0; CmbRoot.SelectedIndex = 0; CmbEdge.SelectedIndex = 0; CmbLoop.SelectedIndex = 0; CmbPoe.SelectedIndex = 0;
+        ChkMakeTrunk.IsChecked = false; TxtTrunkNative.Text = ""; TxtTrunkVlans.Text = ""; CmbAdmin.SelectedIndex = 0; TxtVlan.Text = ""; CmbBpdu.SelectedIndex = 0; CmbRoot.SelectedIndex = 0; CmbEdge.SelectedIndex = 0; CmbLoop.SelectedIndex = 0; CmbPoe.SelectedIndex = 0;
         if (CmbLag.Items.Count > 0) CmbLag.SelectedIndex = 0;
     }
 
