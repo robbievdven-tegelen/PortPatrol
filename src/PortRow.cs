@@ -31,7 +31,23 @@ public sealed class PortRow : INotifyPropertyChanged
     public string ModeText => !string.IsNullOrEmpty(State.Lag) ? $"LAG {State.Lag}" : State.Mode ?? "";
     public string VlanText => string.Equals(State.Mode, "ACCESS", StringComparison.OrdinalIgnoreCase)
         ? State.AccessVlan?.ToString() ?? ""
-        : (State.NativeVlan is int n ? $"native {n}" : "");
+        : TrunkText;
+    /// <summary>Trunk ports: native VLAN and the allowed VLANs ("all" or the list).</summary>
+    public string TrunkText
+    {
+        get
+        {
+            if (State.Switchport == null) return State.NativeVlan is int n ? $"native {n}" : "";
+            try
+            {
+                var sp = JsonNode.Parse(State.Switchport) as JsonObject;
+                var native = J.Int(sp?["native-vlan"]);
+                string allowed = J.Bool(sp?["trunk-vlan-all"]) ? "all" : sp?["trunk-vlan-ranges"] is JsonArray a && a.Count > 0 ? string.Join(",", a.Select(x => J.Str(x))) : "none";
+                return $"native {native?.ToString() ?? "?"}, allowed {allowed}";
+            }
+            catch { return State.NativeVlan is int n2 ? $"native {n2}" : ""; }
+        }
+    }
     public string BpduText => State.BpduGuard ? "on" : "";
     public string RootText => State.RootGuard ? "on" : "";
     public string EdgeText => State.AdminEdge ? "on" : "";

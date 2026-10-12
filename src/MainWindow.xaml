@@ -162,7 +162,7 @@
                   </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Mode" Binding="{Binding ModeText}" Width="72"/>
-                <DataGridTextColumn Header="VLAN" Binding="{Binding VlanText}" Width="80"/>
+                <DataGridTextColumn Header="VLAN" Binding="{Binding VlanText}" Width="190"/>
                 <DataGridTextColumn Header="BPDU" Binding="{Binding BpduText}" Width="45"/>
                 <DataGridTextColumn Header="Root" Binding="{Binding RootText}" Width="45"/>
                 <DataGridTextColumn Header="Edge" Binding="{Binding EdgeText}" Width="45"/>
