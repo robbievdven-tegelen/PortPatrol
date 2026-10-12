@@ -11,6 +11,13 @@ PortPatrol is a Windows desktop app (WPF, .NET 8, C#) to view and change port se
 - Dry run (live read, no write), Apply (only after a matching dry run, confirmed by typing the port count, snapshot before each write, readback verification, stops at the first problem), Refresh and Rollback from a snapshot file.
 - Guards: trunk ports and ports whose description looks like an uplink (UL, uplink, LAG, backbone) are skipped unless you tick "Allow trunk and uplink ports". The access VLAN is only applied to ACCESS ports.
 
+## Code signing policy
+Free code signing is provided by [SignPath.io](https://signpath.io), certificate by the [SignPath Foundation](https://signpath.org). This applies to Windows releases once the project is approved by the SignPath Foundation. Until then the releases are not signed, see "Windows security warnings".
+
+- **Which files are signed:** `PortPatrol.exe` and `PortPatrol-selfcontained.exe`, built by the GitHub Actions workflow `.github/workflows/release.yml` from the source in this repository.
+- **Roles:** Author, Reviewer and Approver are held by the maintainer, [@robbievdven-tegelen](https://github.com/robbievdven-tegelen). Every release is approved manually before it is signed.
+- **Privacy:** PortPatrol sends data only to the HPE sign in service (`sso.common.cloud.hpe.com`) and to the Central API address you select, and only when you use the app. It sends no telemetry or other information to other networked systems.
+
 ## License
 MIT, see `LICENSE`.
 

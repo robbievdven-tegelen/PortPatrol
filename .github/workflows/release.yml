@@ -25,22 +25,45 @@ jobs:
       - name: Publish (self contained, single file)
         run: dotnet publish src/PortPatrol.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o out/selfcontained
 
-      - name: Checksums
-        shell: pwsh
-        run: |
-          Get-ChildItem out -Recurse -Filter PortPatrol.exe | ForEach-Object {
-            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
-            "$h  $($_.Directory.Name)/PortPatrol.exe" | Out-File out/SHA256SUMS.txt -Append -Encoding ascii
-          }
-          Get-Content out/SHA256SUMS.txt
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload unsigned binaries
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
         with:
           name: PortPatrol-unsigned
           path: |
             out/framework/PortPatrol.exe
             out/selfcontained/PortPatrol.exe
-            out/SHA256SUMS.txt
+
+      # Signing runs only when the repository variable SIGNPATH_ORGANIZATION_ID is set
+      # and the secret SIGNPATH_API_TOKEN exists (after the SignPath approval).
+      - name: Sign with SignPath
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: PortPatrol
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: out-signed
+
+      - name: Collect final files and checksums
+        shell: pwsh
+        run: |
+          $src = if ('${{ vars.SIGNPATH_ORGANIZATION_ID }}' -ne '') { 'out-signed' } else { 'out' }
+          New-Item -ItemType Directory final | Out-Null
+          Copy-Item "$src/framework/PortPatrol.exe" final/PortPatrol.exe
+          Copy-Item "$src/selfcontained/PortPatrol.exe" final/PortPatrol-selfcontained.exe
+          Get-ChildItem final -Filter *.exe | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash)  $($_.Name)" | Out-File final/SHA256SUMS.txt -Append -Encoding ascii
+          }
+          Get-Content final/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PortPatrol
+          path: final/*
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -51,13 +74,11 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: PortPatrol-unsigned
+          name: PortPatrol
           path: dist
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mv dist/framework/PortPatrol.exe dist/PortPatrol.exe
-          mv dist/selfcontained/PortPatrol.exe dist/PortPatrol-selfcontained.exe
           gh release create "${{ github.ref_name }}" dist/PortPatrol.exe dist/PortPatrol-selfcontained.exe dist/SHA256SUMS.txt \
-            --repo "${{ github.repository }}" --draft --title "${{ github.ref_name }}" --notes "Unsigned build. Verify the SHA256 in SHA256SUMS.txt."
+            --repo "${{ github.repository }}" --draft --title "${{ github.ref_name }}" --notes "Verify the SHA256 in SHA256SUMS.txt."
