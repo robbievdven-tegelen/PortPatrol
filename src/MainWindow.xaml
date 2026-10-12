@@ -235,11 +235,21 @@
                 <StackPanel Grid.Column="1"><TextBlock Text="Description (optional)" Style="{StaticResource Caption}" Margin="0,0,0,3"/><TextBox x:Name="TxtLagDesc" TextChanged="SpecChanged"/></StackPanel>
               </Grid>
               <CheckBox x:Name="ChkMakeTrunk" Margin="0,12,0,0" Content="Make trunk (needs 'Allow trunk and uplink ports')" Checked="ChkMakeTrunk_Changed" Unchecked="ChkMakeTrunk_Changed"/>
-              <Grid x:Name="PnlTrunk" Visibility="Collapsed" Margin="0,6,0,0">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Native VLAN" Style="{StaticResource Caption}" Margin="0,0,0,3"/><TextBox x:Name="TxtTrunkNative" TextChanged="SpecChanged"/></StackPanel>
-                <StackPanel Grid.Column="1"><TextBlock Text="Allowed VLANs (e.g. 10,20,30-40)" Style="{StaticResource Caption}" Margin="0,0,0,3"/><TextBox x:Name="TxtTrunkVlans" TextChanged="SpecChanged"/></StackPanel>
-              </Grid>
+              <StackPanel x:Name="PnlTrunk" Visibility="Collapsed" Margin="0,6,0,0">
+                <TextBlock Text="Native VLAN" Style="{StaticResource Caption}" Margin="0,0,0,3"/>
+                <ComboBox x:Name="TxtTrunkNative" IsEditable="True" SelectionChanged="SpecChanged" TextBoxBase.TextChanged="SpecChanged"/>
+                <TextBlock Text="Allowed VLANs" Style="{StaticResource Caption}" Margin="0,8,0,3"/>
+                <CheckBox x:Name="ChkTrunkAll" Content="All VLANs" Checked="ChkTrunkAll_Changed" Unchecked="ChkTrunkAll_Changed"/>
+                <Border x:Name="BrdTrunkVlans" BorderBrush="#BBB" BorderThickness="1" Margin="0,4,0,0">
+                  <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="LstTrunkVlans" Margin="4">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate><CheckBox Content="{Binding Text}" IsChecked="{Binding IsChecked, Mode=TwoWay}" Checked="SpecChanged" Unchecked="SpecChanged" Margin="0,1,0,1"/></DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </Border>
+              </StackPanel>
               <TextBlock Text="LAG changes need 'Allow trunk and uplink ports' and can interrupt links." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
               <CheckBox x:Name="ChkAllowTrunk" Margin="0,12,0,0" Content="Allow trunk and uplink ports" Checked="SpecChanged" Unchecked="SpecChanged"/>
               <TextBlock Text="PoE is only changed when you set it above." Foreground="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0"/>

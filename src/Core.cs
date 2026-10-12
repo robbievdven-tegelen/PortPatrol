@@ -109,6 +109,8 @@ public sealed class ChangeSpec
     public bool MakeTrunk { get; set; }
     public int? TrunkNative { get; set; }
     public List<string> TrunkVlans { get; set; } = new();
+    /// <summary>Allow all VLANs on the trunk (trunk-vlan-all) instead of a list.</summary>
+    public bool TrunkAll { get; set; }
 
     /// <summary>Expands "10", "20-22" into a set of VLAN ids. Returns null when an entry is invalid.</summary>
     public static HashSet<int>? ExpandVlans(IEnumerable<string> items)
@@ -127,7 +129,7 @@ public sealed class ChangeSpec
     }
 
     public bool IsEmpty => !MakeTrunk && LagMode == LagMode.NoChange && Description == null && !ClearDescription && Poe == null && Enable == null && AccessVlan == null && BpduGuard == null && RootGuard == null && AdminEdge == null && LoopProtect == null;
-    public string Key => $"{MakeTrunk}|{TrunkNative}|{string.Join(",", TrunkVlans)}|{LagMode}|{LagId}|{LagDescription}|{Description}|{ClearDescription}|{Poe}|{Enable}|{AccessVlan}|{BpduGuard}|{RootGuard}|{AdminEdge}|{LoopProtect}";
+    public string Key => $"{MakeTrunk}|{TrunkAll}|{TrunkNative}|{string.Join(",", TrunkVlans)}|{LagMode}|{LagId}|{LagDescription}|{Description}|{ClearDescription}|{Poe}|{Enable}|{AccessVlan}|{BpduGuard}|{RootGuard}|{AdminEdge}|{LoopProtect}";
 
     static readonly Regex UplinkWords = new(@"\b(UL|uplink|LAG|backbone)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -185,21 +187,20 @@ public sealed class ChangeSpec
             if (AccessVlan != null || LagMode != LagMode.NoChange) { p.Skip = "make trunk cannot be combined with an access VLAN or a LAG change"; return p; }
             if (!allowTrunkAndUplink) { p.Skip = "make trunk (guard: tick 'Allow trunk and uplink ports' to override)"; return p; }
             if (lagMember) { p.Skip = "LAG member, remove it from the LAG first"; return p; }
-            if (TrunkNative is not int nat || nat < 1 || nat > 4094 || TrunkVlans.Count == 0 || ExpandVlans(TrunkVlans) == null) { p.Skip = "trunk needs a native VLAN and a valid allowed VLAN list"; return p; }
-            var want = ExpandVlans(TrunkVlans)!;
+            if (TrunkNative is not int nat || nat < 1 || nat > 4094 || (!TrunkAll && (TrunkVlans.Count == 0 || ExpandVlans(TrunkVlans) == null))) { p.Skip = "trunk needs a native VLAN and a valid allowed VLAN list"; return p; }
+            var want = TrunkAll ? new HashSet<int>() : ExpandVlans(TrunkVlans)!;
             bool same = false;
             if (trunk && b.Switchport != null && JsonNode.Parse(b.Switchport) is JsonObject cur)
             {
                 var have = cur["trunk-vlan-ranges"] is JsonArray ja ? ExpandVlans(ja.Select(x => J.Str(x) ?? "")) : null;
-                same = J.Int(cur["native-vlan"]) == nat && !J.Bool(cur["trunk-vlan-all"]) && have != null && have.SetEquals(want);
+                same = J.Int(cur["native-vlan"]) == nat && (TrunkAll ? J.Bool(cur["trunk-vlan-all"]) : !J.Bool(cur["trunk-vlan-all"]) && have != null && have.SetEquals(want));
             }
             if (!same)
             {
-                var sp = new JsonObject { ["interface-mode"] = "TRUNK", ["native-vlan"] = nat, ["tag"] = false, ["trunk-vlan-all"] = false };
-                var arr = new JsonArray(); foreach (var x in TrunkVlans) arr.Add(x.Trim());
-                sp["trunk-vlan-ranges"] = arr;
+                var sp = new JsonObject { ["interface-mode"] = "TRUNK", ["native-vlan"] = nat, ["tag"] = false, ["trunk-vlan-all"] = TrunkAll };
+                if (!TrunkAll) { var arr = new JsonArray(); foreach (var x in TrunkVlans) arr.Add(x.Trim()); sp["trunk-vlan-ranges"] = arr; }
                 other["switchport"] = sp;
-                otherChanges.Add($"mode {b.Mode ?? "?"} -> TRUNK, native VLAN {nat}, allowed {string.Join(",", TrunkVlans.Select(x => x.Trim()))}");
+                otherChanges.Add($"mode {b.Mode ?? "?"} -> TRUNK, native VLAN {nat}, allowed {(TrunkAll ? "all VLANs" : string.Join(",", TrunkVlans.Select(x => x.Trim())))}");
             }
             // end-device protections do not belong on a trunk
             var tstp = new JsonObject();
@@ -322,7 +323,8 @@ public sealed class ChangeSpec
                 if (J.Int(cur["native-vlan"]) != TrunkNative) bad.Add($"native VLAN is {J.Int(cur["native-vlan"])}");
                 var have = cur["trunk-vlan-ranges"] is JsonArray ja ? ExpandVlans(ja.Select(x => J.Str(x) ?? "")) : null;
                 var want = ExpandVlans(TrunkVlans);
-                if (J.Bool(cur["trunk-vlan-all"]) || have == null || want == null || !have.SetEquals(want)) bad.Add("allowed VLANs differ");
+                if (TrunkAll) { if (!J.Bool(cur["trunk-vlan-all"])) bad.Add("trunk-vlan-all is off"); }
+                else if (J.Bool(cur["trunk-vlan-all"]) || have == null || want == null || !have.SetEquals(want)) bad.Add("allowed VLANs differ");
             }
             if (a.BpduGuard || a.RootGuard || a.AdminEdge || a.LoopProtect) bad.Add("end-device protections still on");
         }

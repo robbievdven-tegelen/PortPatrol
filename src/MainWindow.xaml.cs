@@ -42,6 +42,8 @@ public partial class MainWindow : Window
     List<SwitchItem> _switches = new();
     List<LagInfo> _lags = new();
     List<(int Id, string Name)> _vlans = new();
+    public sealed class VlanPick { public int Id { get; set; } public string Text { get; set; } = ""; public bool IsChecked { get; set; } }
+    ObservableCollection<VlanPick> _trunkPicks = new();
     SwitchItem? _cur;
     readonly ObservableCollection<PortRow> _ports = new();
     ICollectionView _portsView;
@@ -249,9 +251,12 @@ public partial class MainWindow : Window
             {
                 _vlans = await _client.ListVlansAsync(_cur.ScopeId, _cts.Token);
                 TxtVlan.ItemsSource = _vlans.Select(v => v.Name.Length > 0 ? $"{v.Id}  ({v.Name})" : v.Id.ToString()).ToList();
+                TxtTrunkNative.ItemsSource = TxtVlan.ItemsSource;
+                _trunkPicks = new(_vlans.OrderBy(v => v.Id).Select(v => new VlanPick { Id = v.Id, Text = v.Name.Length > 0 ? $"{v.Id}  ({v.Name})" : v.Id.ToString() }));
+                LstTrunkVlans.ItemsSource = _trunkPicks;
                 Log(_vlans.Count > 0 ? $"{_vlans.Count} VLANs defined for {_cur.Name} ({_client.VlanNote})." : $"No VLAN list for {_cur.Name}; any VLAN number is accepted. {_client.VlanNote}");
             }
-            catch (Exception vx) { _vlans = new(); TxtVlan.ItemsSource = null; Log($"VLAN list not available for {_cur.Name}: {vx.Message}"); }
+            catch (Exception vx) { _vlans = new(); TxtVlan.ItemsSource = null; TxtTrunkNative.ItemsSource = null; _trunkPicks = new(); LstTrunkVlans.ItemsSource = _trunkPicks; Log($"VLAN list not available for {_cur.Name}: {vx.Message}"); }
             string linkNote;
             try
             {
@@ -410,10 +415,17 @@ public partial class MainWindow : Window
         }
         if (ChkMakeTrunk.IsChecked == true)
         {
-            if (!int.TryParse(TxtTrunkNative.Text.Trim(), out var nat) || nat < 1 || nat > 4094) { err = "Native VLAN must be a number between 1 and 4094."; return null; }
-            var list = TxtTrunkVlans.Text.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
-            if (list.Count == 0 || ChangeSpec.ExpandVlans(list) == null) { err = "Allowed VLANs: numbers 1 to 4094 or ranges like 30-40, separated by commas."; return null; }
-            s.MakeTrunk = true; s.TrunkNative = nat; s.TrunkVlans = list;
+            var nm = System.Text.RegularExpressions.Regex.Match(TxtTrunkNative.Text.Trim(), @"^\d+");
+            if (!nm.Success || !int.TryParse(nm.Value, out var nat) || nat < 1 || nat > 4094) { err = "Native VLAN: pick a VLAN from the list."; return null; }
+            if (_vlans.Count > 0 && !_vlans.Any(x => x.Id == nat)) { err = $"Native VLAN {nat} is not defined on {_cur?.Name}. Pick one from the list."; return null; }
+            s.MakeTrunk = true; s.TrunkNative = nat;
+            if (ChkTrunkAll.IsChecked == true) s.TrunkAll = true;
+            else
+            {
+                var list = _trunkPicks.Where(x => x.IsChecked).Select(x => x.Id.ToString()).ToList();
+                if (list.Count == 0) { err = "Allowed VLANs: tick 'All VLANs' or at least one VLAN."; return null; }
+                s.TrunkVlans = list;
+            }
             s.BpduGuard = s.RootGuard = s.AdminEdge = s.LoopProtect = null;   // switched off automatically on a trunk
         }
         var t = TxtVlan.Text.Trim();
@@ -444,6 +456,12 @@ public partial class MainWindow : Window
             x.ToolTip = on ? "Switched off automatically on a trunk." : null;
             if (on) x.SelectedIndex = 0;
         }
+        SpecChanged(sender, e);
+    }
+
+    void ChkTrunkAll_Changed(object sender, RoutedEventArgs e)
+    {
+        BrdTrunkVlans.IsEnabled = ChkTrunkAll.IsChecked != true;
         SpecChanged(sender, e);
     }
 
@@ -491,7 +509,7 @@ public partial class MainWindow : Window
     {
         _descPrefill = null;
         TxtDesc.Text = ""; ChkClearDesc.IsChecked = false;
-        ChkMakeTrunk.IsChecked = false; TxtTrunkNative.Text = ""; TxtTrunkVlans.Text = ""; CmbAdmin.SelectedIndex = 0; TxtVlan.Text = ""; CmbBpdu.SelectedIndex = 0; CmbRoot.SelectedIndex = 0; CmbEdge.SelectedIndex = 0; CmbLoop.SelectedIndex = 0; CmbPoe.SelectedIndex = 0;
+        ChkMakeTrunk.IsChecked = false; TxtTrunkNative.Text = ""; ChkTrunkAll.IsChecked = false; foreach (var tp in _trunkPicks) tp.IsChecked = false; LstTrunkVlans.Items.Refresh(); CmbAdmin.SelectedIndex = 0; TxtVlan.Text = ""; CmbBpdu.SelectedIndex = 0; CmbRoot.SelectedIndex = 0; CmbEdge.SelectedIndex = 0; CmbLoop.SelectedIndex = 0; CmbPoe.SelectedIndex = 0;
         if (CmbLag.Items.Count > 0) CmbLag.SelectedIndex = 0;
     }
 
