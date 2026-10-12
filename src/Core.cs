@@ -186,7 +186,6 @@ public sealed class ChangeSpec
             if (!allowTrunkAndUplink) { p.Skip = "make trunk (guard: tick 'Allow trunk and uplink ports' to override)"; return p; }
             if (lagMember) { p.Skip = "LAG member, remove it from the LAG first"; return p; }
             if (TrunkNative is not int nat || nat < 1 || nat > 4094 || TrunkVlans.Count == 0 || ExpandVlans(TrunkVlans) == null) { p.Skip = "trunk needs a native VLAN and a valid allowed VLAN list"; return p; }
-            if (BpduGuard == true || RootGuard == true || AdminEdge == true || LoopProtect == true) { p.Skip = "BPDU guard, root guard, admin edge and loop protect are switched off on a trunk, do not set them to On"; return p; }
             var want = ExpandVlans(TrunkVlans)!;
             bool same = false;
             if (trunk && b.Switchport != null && JsonNode.Parse(b.Switchport) is JsonObject cur)
@@ -231,12 +230,12 @@ public sealed class ChangeSpec
                 otherChanges.Add(trunk && !leaving ? $"mode TRUNK -> ACCESS, access VLAN {v}" : $"access VLAN {b.AccessVlan?.ToString() ?? "?"} -> {v}");
             }
         }
-        var stp = new JsonObject();
-        if (BpduGuard is bool x1 && x1 != b.BpduGuard) { stp["bpdu-guard"] = x1; otherChanges.Add($"BPDU guard {OnOff(b.BpduGuard)} -> {OnOff(x1)}"); }
-        if (RootGuard is bool x2 && x2 != b.RootGuard) { stp["root-guard"] = x2; otherChanges.Add($"root guard {OnOff(b.RootGuard)} -> {OnOff(x2)}"); }
-        if (AdminEdge is bool x3 && x3 != b.AdminEdge) { stp["admin-edge-port"] = x3; otherChanges.Add($"admin edge {OnOff(b.AdminEdge)} -> {OnOff(x3)}"); }
+        var stp = MakeTrunk ? (other["stp"] as JsonObject ?? new JsonObject()) : new JsonObject();
+        if (!MakeTrunk && BpduGuard is bool x1 && x1 != b.BpduGuard) { stp["bpdu-guard"] = x1; otherChanges.Add($"BPDU guard {OnOff(b.BpduGuard)} -> {OnOff(x1)}"); }
+        if (!MakeTrunk && RootGuard is bool x2 && x2 != b.RootGuard) { stp["root-guard"] = x2; otherChanges.Add($"root guard {OnOff(b.RootGuard)} -> {OnOff(x2)}"); }
+        if (!MakeTrunk && AdminEdge is bool x3 && x3 != b.AdminEdge) { stp["admin-edge-port"] = x3; otherChanges.Add($"admin edge {OnOff(b.AdminEdge)} -> {OnOff(x3)}"); }
         if (stp.Count > 0) other["stp"] = stp;
-        if (LoopProtect is bool l)
+        if (!MakeTrunk && LoopProtect is bool l)
         {
             if (l && (!b.LoopProtect || b.LoopAction != "TX_DISABLE"))
             {
@@ -329,10 +328,10 @@ public sealed class ChangeSpec
         }
         if (AccessVlan is int v && a.AccessVlan != v) bad.Add($"access VLAN is {a.AccessVlan}");
         if (AccessVlan is int v2 && !string.Equals(a.Mode, "ACCESS", StringComparison.OrdinalIgnoreCase)) bad.Add($"mode is {a.Mode ?? "none"}");
-        if (BpduGuard is bool b1 && a.BpduGuard != b1) bad.Add("BPDU guard");
-        if (RootGuard is bool b2 && a.RootGuard != b2) bad.Add("root guard");
-        if (AdminEdge is bool b3 && a.AdminEdge != b3) bad.Add("admin edge");
-        if (LoopProtect is bool l)
+        if (!MakeTrunk && BpduGuard is bool b1 && a.BpduGuard != b1) bad.Add("BPDU guard");
+        if (!MakeTrunk && RootGuard is bool b2 && a.RootGuard != b2) bad.Add("root guard");
+        if (!MakeTrunk && AdminEdge is bool b3 && a.AdminEdge != b3) bad.Add("admin edge");
+        if (!MakeTrunk && LoopProtect is bool l)
         {
             if (a.LoopProtect != l) bad.Add("loop protect");
             else if (l && a.LoopAction != "TX_DISABLE") bad.Add($"loop protect action is {a.LoopAction}");

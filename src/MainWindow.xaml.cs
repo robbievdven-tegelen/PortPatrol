@@ -414,6 +414,7 @@ public partial class MainWindow : Window
             var list = TxtTrunkVlans.Text.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
             if (list.Count == 0 || ChangeSpec.ExpandVlans(list) == null) { err = "Allowed VLANs: numbers 1 to 4094 or ranges like 30-40, separated by commas."; return null; }
             s.MakeTrunk = true; s.TrunkNative = nat; s.TrunkVlans = list;
+            s.BpduGuard = s.RootGuard = s.AdminEdge = s.LoopProtect = null;   // switched off automatically on a trunk
         }
         var t = TxtVlan.Text.Trim();
         var vm = System.Text.RegularExpressions.Regex.Match(t, @"^\d+");
@@ -437,6 +438,12 @@ public partial class MainWindow : Window
         if (on) { TxtVlan.Text = ""; }
         TxtVlan.IsEnabled = !on;
         TxtVlan.ToolTip = on ? "Not used when making a trunk." : null;
+        foreach (var x in new[] { CmbBpdu, CmbRoot, CmbEdge, CmbLoop })
+        {
+            x.IsEnabled = !on;
+            x.ToolTip = on ? "Switched off automatically on a trunk." : null;
+            if (on) x.SelectedIndex = 0;
+        }
         SpecChanged(sender, e);
     }
 
