@@ -11,12 +11,10 @@ PortPatrol is a Windows desktop app (WPF, .NET 8, C#) to view and change port se
 - Dry run (live read, no write), Apply (only after a matching dry run, confirmed by typing the port count, snapshot before each write, readback verification, stops at the first problem), Refresh and Rollback from a snapshot file.
 - Guards: trunk ports and ports whose description looks like an uplink (UL, uplink, LAG, backbone) are skipped unless you tick "Allow trunk and uplink ports". The access VLAN is only applied to ACCESS ports.
 
-## Code signing policy
-Free code signing is provided by [SignPath.io](https://signpath.io), certificate by the [SignPath Foundation](https://signpath.org). This applies to Windows releases once the project is approved by the SignPath Foundation. Until then the releases are not signed, see "Windows security warnings".
+## Code signing
+The releases are not code signed. An application to the SignPath Foundation was declined because the project is still too new, and will be repeated when the project has more public visibility. Verify each download with `SHA256SUMS.txt`, see "Windows security warnings".
 
-- **Which files are signed:** `PortPatrol.exe` and `PortPatrol-selfcontained.exe`, built by the GitHub Actions workflow `.github/workflows/release.yml` from the source in this repository.
-- **Roles:** Author, Reviewer and Approver are held by the maintainer, [@robbievdven-tegelen](https://github.com/robbievdven-tegelen). Every release is approved manually before it is signed.
-- **Privacy:** PortPatrol sends data only to the HPE sign in service (`sso.common.cloud.hpe.com`) and to the Central API address you select, and only when you use the app. It sends no telemetry or other information to other networked systems.
+**Privacy:** PortPatrol sends data only to the HPE sign in service (`sso.common.cloud.hpe.com`) and to the Central API address you select, and only when you use the app. It sends no telemetry or other information to other networked systems.
 
 ## License
 MIT, see `LICENSE`.
@@ -27,7 +25,7 @@ MIT, see `LICENSE`.
 - The base URL of your Central cluster (see "Finding your base URL" on the HPE Aruba Networking developer hub).
 
 ## Windows security warnings
-PortPatrol is not code signed yet. Windows can therefore treat `PortPatrol.exe` as an unknown program:
+PortPatrol is not code signed. Windows can therefore treat `PortPatrol.exe` as an unknown program:
 - SmartScreen can show "Windows protected your PC". Choose "More info" and then "Run anyway".
 - Microsoft Defender attack surface reduction (ASR) can block it when the rule "Block executable files from running unless they meet a prevalence, age, or trusted list criterion" is enabled. On managed devices only your administrator can allow it, for example with a per rule exclusion for the folder that contains the exe in Intune or Group Policy.
 
