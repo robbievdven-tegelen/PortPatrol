@@ -144,7 +144,7 @@
                 </DataTemplate>
               </DataGrid.RowDetailsTemplate>
               <DataGrid.Columns>
-                <DataGridTextColumn Header="Port" Binding="{Binding Name}" Width="70"/>
+                <DataGridTextColumn Header="Port" Binding="{Binding Name}" SortMemberPath="SortNumber" Width="70"/>
                 <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" MinWidth="80"/>
                 <DataGridTextColumn Header="Admin" Binding="{Binding AdminText}" Width="55"/>
                 <DataGridTemplateColumn Header="Link" Width="62" SortMemberPath="LinkText">

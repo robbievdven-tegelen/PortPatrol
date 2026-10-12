@@ -662,7 +662,8 @@ public partial class MainWindow : Window
                 await Task.Delay(400, _cts.Token);
                 var now = PortState.From(await _client.GetPortAsync(scope, port, _cts.Token));
                 bool good = (now.Lag ?? "") == (beforeLag ?? "") && (beforeLag != null || true) && now.Enable == J.Bool(before["enable"], true) && now.BpduGuard == J.Bool(before["bpduGuard"]) && now.LoopProtect == J.Bool(before["loopProtect"])
-                            && (J.Str(before["mode"]) != "ACCESS" || now.AccessVlan == J.Int(before["accessVlan"]));
+                            && (J.Str(before["mode"]) != "ACCESS" || now.AccessVlan == J.Int(before["accessVlan"]))
+                            && (J.Str(before["mode"]) != "TRUNK" || string.Equals(now.Mode, "TRUNK", StringComparison.OrdinalIgnoreCase));
                 if (beforeLag != null) good = (now.Lag ?? "") == beforeLag;
                 if (good) { Log($"{port,-8} rolled back, verified"); ok++; }
                 else { Log($"{port,-8} ERROR   readback differs from snapshot. Stopped."); failed++; break; }

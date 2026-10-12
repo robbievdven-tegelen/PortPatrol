@@ -12,6 +12,8 @@ public sealed class PortRow : INotifyPropertyChanged
     public string Name { get; }
     public string Description { get; }
     public (int, int, int) SortKey { get; }
+    /// <summary>Numeric key for the Port column, so 1/1/2 sorts before 1/1/10.</summary>
+    public long SortNumber => (long)SortKey.Item1 * 1_000_000 + (long)SortKey.Item2 * 1_000 + SortKey.Item3;
 
     public PortRow(JsonObject o)
     {

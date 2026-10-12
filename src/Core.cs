@@ -50,7 +50,7 @@ public sealed class SwitchItem
 }
 
 public sealed record PortState(bool Enable, string? Mode, int? AccessVlan, int? NativeVlan,
-    bool BpduGuard, bool RootGuard, bool AdminEdge, bool LoopProtect, string? LoopAction, string? Lag = null, bool? Poe = null, string? Desc = null)
+    bool BpduGuard, bool RootGuard, bool AdminEdge, bool LoopProtect, string? LoopAction, string? Lag = null, bool? Poe = null, string? Desc = null, string? Switchport = null)
 {
     public static PortState From(JsonObject o) => new(
         J.Bool(o["enable"], true),
@@ -64,7 +64,8 @@ public sealed record PortState(bool Enable, string? Mode, int? AccessVlan, int? 
         J.Str(o["loop-protect"]?["action"]),
         J.Str(o["portchannel-lag"]),
         o["poe"] is JsonObject po ? J.Bool(po["enabled"]) : null,
-        string.IsNullOrEmpty(J.Str(o["description"])) ? null : J.Str(o["description"]));
+        string.IsNullOrEmpty(J.Str(o["description"])) ? null : J.Str(o["description"]),
+        string.Equals(J.Str(o["switchport"]?["interface-mode"]), "TRUNK", StringComparison.OrdinalIgnoreCase) ? o["switchport"]?.ToJsonString() : null);
 }
 
 public sealed class PortPlan
@@ -166,15 +167,18 @@ public sealed class ChangeSpec
                 p.Skip = "access VLAN cannot be combined with joining a LAG";
                 return p;
             }
-            if (!string.Equals(b.Mode, "ACCESS", StringComparison.OrdinalIgnoreCase) && !leaving)
+            bool isAccess = string.Equals(b.Mode, "ACCESS", StringComparison.OrdinalIgnoreCase);
+            if (!isAccess && !leaving && !(trunk && allowTrunkAndUplink))
             {
-                p.Skip = $"mode is {b.Mode ?? "unknown"}, access VLAN only applies to ACCESS ports";
+                p.Skip = trunk ? "TRUNK port (guard: tick 'Allow trunk and uplink ports' to convert it to ACCESS)"
+                               : $"mode is {b.Mode ?? "unknown"}, access VLAN only applies to ACCESS ports";
                 return p;
             }
-            if (b.AccessVlan != v || leaving)
+            if (trunk && !leaving && !string.IsNullOrEmpty(b.Lag)) { p.Skip = "LAG member, remove it from the LAG first"; return p; }
+            if (!isAccess || b.AccessVlan != v || leaving)
             {
                 other["switchport"] = new JsonObject { ["interface-mode"] = "ACCESS", ["access-vlan"] = v };
-                otherChanges.Add($"access VLAN {b.AccessVlan?.ToString() ?? "?"} -> {v}");
+                otherChanges.Add(trunk && !leaving ? $"mode TRUNK -> ACCESS, access VLAN {v}" : $"access VLAN {b.AccessVlan?.ToString() ?? "?"} -> {v}");
             }
         }
         var stp = new JsonObject();
@@ -651,6 +655,7 @@ public static class Snapshots
         ["enable"] = s.Enable,
         ["mode"] = s.Mode,
         ["accessVlan"] = s.AccessVlan,
+        ["switchport"] = s.Switchport != null ? JsonNode.Parse(s.Switchport) : null,
         ["bpduGuard"] = s.BpduGuard,
         ["rootGuard"] = s.RootGuard,
         ["adminEdgePort"] = s.AdminEdge,
@@ -689,6 +694,8 @@ public static class Snapshots
         // the description is restored by the caller, which knows the current value (older snapshots have no description: left alone)
         if (J.Str(before["mode"]) == "ACCESS" && J.Int(before["accessVlan"]) is int v)
             b["switchport"] = new JsonObject { ["interface-mode"] = "ACCESS", ["access-vlan"] = v };
+        else if (J.Str(before["mode"]) == "TRUNK" && before["switchport"] is JsonObject sp)
+            b["switchport"] = sp.DeepClone();   // full trunk definition (native VLAN, tag, allowed VLANs)
         return b;
     }
 }
